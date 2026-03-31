@@ -18,7 +18,7 @@
 
 ---
 
-## 🎥 Demo Video
+## Demo Video
 
 [![Demo Video](https://img.youtube.com/vi/VS3vQp5i8YQ/0.jpg)](https://youtu.be/VS3vQp5i8YQ)
 
@@ -26,7 +26,7 @@
 
 Due to the use of HIDPI, there is significant lag when remotely connecting to Linux, making it temporarily unable to replace VNC. I will improve it in the future, offering two selectable display modes.
 
-## ✨ Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
@@ -78,7 +78,7 @@ cargo build --release
    ./run_waypipe.sh ssh user@linux-host firefox
    ```
 
-## 🏗️ Architecture
+## Architecture
 
 ```mermaid
 graph LR
@@ -107,9 +107,9 @@ graph LR
 | VNC | 🐢 High | ❌ | ❌ Full screen | 🟡 Medium |
 | VM GUI | 🐢 High | ⚠️ Partial | ❌ Separate window | 🔴 Complex |
 
-## 🗺️ Roadmap
+## Roadmap
 
-- [x] macOS backend (Metal/OpenGL)
+- [x] macOS backend (OpenGL)
 - [x] Waypipe integration
 - [x] HiDPI scaling
 - [ ] 🚧 Windows backend ([win-way](https://github.com/J-x-Z/win-way))
