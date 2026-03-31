@@ -24,7 +24,7 @@
 
 > *True protocol portability: Cocoa-Way rendering Linux apps from OrbStack via Unix sockets.*
 
-Due to the use of HIDPI, it causes huge latency when remotely connecting to Linux, and it cannot temporarily replace VNC. I will improve it in the future.
+Due to the use of HIDPI, there is significant lag when remotely connecting to Linux, making it temporarily unable to replace VNC. I will improve it in the future, offering two selectable display modes.
 
 ## ✨ Features
 
