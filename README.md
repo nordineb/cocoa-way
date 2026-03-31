@@ -115,11 +115,8 @@ graph LR
 - [ ] Multi-monitor support
 - [ ] Clipboard sync
 
-## 📚 Research
 
-This project is part of the **"Turbo-Charged Protocol Virtualization"** research initiative exploring zero-cost cross-platform Wayland via Rust trait monomorphization + SIMD-accelerated pixel conversion.
-
-## ❓ Troubleshooting
+## Troubleshooting
 
 <details>
 <summary><b>SSH: "remote port forwarding failed"</b></summary>
@@ -132,7 +129,7 @@ waypipe ssh -o StreamLocalBindUnlink=yes user@host ...
 ```
 </details>
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please open an issue first to discuss major changes.
 
