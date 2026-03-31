@@ -134,7 +134,7 @@ impl GlRenderer {
         });
         let version = unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const _).to_string_lossy() };
         log::info!("OpenGL Version: {}", version);
-        if let Err(e) = gl_surface.set_swap_interval(&gl_context, SwapInterval::Wait(unsafe { NonZeroU32::new_unchecked(1) })) {
+        if let Err(e) = gl_surface.set_swap_interval(&gl_context, SwapInterval::Wait(NonZeroU32::new(1).expect("1 is non-zero"))) {
             log::warn!("Error setting vsync: {:?}", e);
         }
         let shader_program = unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)? };
@@ -222,11 +222,10 @@ impl GlRenderer {
         if width > 0 && height > 0 {
             self.width = width;
             self.height = height;
-            // Safety: We've checked that width > 0 and height > 0 above
             self.gl_surface.resize(
                 &self.gl_context,
-                unsafe { NonZeroU32::new_unchecked(width) },
-                unsafe { NonZeroU32::new_unchecked(height) },
+                NonZeroU32::new(width).expect("width > 0"),
+                NonZeroU32::new(height).expect("height > 0"),
             );
             unsafe {
                 gl::Viewport(0, 0, width as i32, height as i32);
