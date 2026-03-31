@@ -28,7 +28,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| 🍎 **Native macOS** | Metal/OpenGL rendering, seamless desktop integration |
+| 🍎 **Native macOS** | OpenGL rendering|
 | 🚀 **Zero VM Overhead** | Direct Wayland protocol via socket, no virtualization |
 | 📺 **HiDPI Ready** | Optimized for Retina displays with proper scaling |
 | 🎨 **Polished UI** | Server-side decorations with shadows and focus indicators |
