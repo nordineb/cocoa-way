@@ -29,7 +29,7 @@
 | Feature | Description |
 |---------|-------------|
 |  **Native macOS** | OpenGL rendering|
-|  **Zero VM Overhead** | Direct Wayland protocol via socket, no virtualization |
+|  **Compositor Zero VM Overhead** | Direct Wayland protocol via socket, no virtualization |
 |  **HiDPI Ready** | Optimized for Retina displays with proper scaling |
 |  **Polished UI** | Server-side decorations with shadows and focus indicators |
 |  **Hardware Accelerated** | Efficient OpenGL rendering pipeline |
