@@ -24,6 +24,8 @@
 
 > *True protocol portability: Cocoa-Way rendering Linux apps from OrbStack via Unix sockets.*
 
+Due to the use of HIDPI, it causes huge latency when remotely connecting to Linux, and it cannot temporarily replace VNC. I will improve it in the future.
+
 ## ✨ Features
 
 | Feature | Description |
@@ -59,7 +61,7 @@ cd cocoa-way
 cargo build --release
 ```
 
-## 🚀 Quick Start
+##  Quick Start
 
 > ⚠️ **Required:** You must install [waypipe-darwin](https://github.com/J-x-Z/waypipe-darwin) to connect Linux apps.
 > ```bash
@@ -96,7 +98,7 @@ graph LR
     CW -->|Metal/OpenGL| Display[macOS Display]
 ```
 
-## 🆚 Comparison
+## Comparison
 
 | Solution | Latency | HiDPI | Native Integration | Setup Complexity |
 |----------|---------|-------|--------------------|------------------|
