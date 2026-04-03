@@ -1,3 +1,6 @@
+# ABOUTME: Hardened release pipeline for cocoa-way macOS Wayland compositor.
+# ABOUTME: Builds .app bundle, ZIP, DMG with SBOM, checksums, and provenance attestation.
+
 name: Release
 
 on:
@@ -5,39 +8,44 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build-macos:
-    runs-on: macos-latest
-    permissions:
-      contents: write
+    runs-on: macos-14
+    environment: release
+    env:
+      TAG_NAME: ${{ github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: recursive
+          persist-credentials: false
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install dependencies
-        run: brew install libxkbcommon pixman pkg-config
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
 
       - name: Build for arm64
-        run: cargo build --release
+        run: nix develop --command cargo build --release
 
       - name: Create .app Bundle
         run: |
           APP_NAME="Cocoa-Way"
           APP_DIR="${APP_NAME}.app"
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG_NAME#v}"
           mkdir -p "${APP_DIR}/Contents/MacOS"
           mkdir -p "${APP_DIR}/Contents/Resources"
-          
+
           cp target/release/cocoa-way "${APP_DIR}/Contents/MacOS/"
           cp assets/icon.png "${APP_DIR}/Contents/Resources/AppIcon.png"
-          
+
           cat > "${APP_DIR}/Contents/Info.plist" << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -71,29 +79,60 @@ jobs:
           sed -i '' "s/VERSION_PLACEHOLDER/${VERSION}/g" "${APP_DIR}/Contents/Info.plist"
 
       - name: Create ZIP archive
-        run: |
-          zip -r "Cocoa-Way-${{ github.ref_name }}-arm64-macos.zip" Cocoa-Way.app
+        run: zip -r "Cocoa-Way-${TAG_NAME}-arm64-macos.zip" Cocoa-Way.app
 
       - name: Create DMG
         run: |
-          hdiutil create -volname "Cocoa-Way" -srcfolder Cocoa-Way.app -ov -format UDZO "Cocoa-Way-${{ github.ref_name }}-arm64-macos.dmg"
+          hdiutil create -volname "Cocoa-Way" -srcfolder Cocoa-Way.app -ov -format UDZO "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg"
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v2
+      - name: Generate SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
-          files: |
-            Cocoa-Way-${{ github.ref_name }}-arm64-macos.zip
-            Cocoa-Way-${{ github.ref_name }}-arm64-macos.dmg
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          format: cyclonedx-json
+          output-file: cocoa-way-sbom.cdx.json
 
-      - name: Calculate SHA256
-        id: sha
+      - name: Generate SHA256 checksums
         run: |
-          SHA=$(shasum -a 256 "Cocoa-Way-${{ github.ref_name }}-arm64-macos.zip" | cut -d ' ' -f 1)
-          echo "sha256=$SHA" >> $GITHUB_OUTPUT
-          echo "SHA256: $SHA"
+          shasum -a 256 \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.zip" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg" \
+            cocoa-way-sbom.cdx.json \
+            > checksums-sha256.txt
+          cat checksums-sha256.txt
 
-    outputs:
-      sha256: ${{ steps.sha.outputs.sha256 }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            Cocoa-Way-${{ env.TAG_NAME }}-arm64-macos.zip
+            Cocoa-Way-${{ env.TAG_NAME }}-arm64-macos.dmg
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Sign artifacts with Cosign (keyless)
+        run: |
+          cosign sign-blob --yes \
+            --output-signature "Cocoa-Way-${TAG_NAME}-arm64-macos.zip.sig" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.zip"
+          cosign sign-blob --yes \
+            --output-signature "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg.sig" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg"
+          shasum -a 256 \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.zip.sig" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg.sig" \
+            >> checksums-sha256.txt
+
+      - name: Create GitHub Release and Upload Assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${TAG_NAME}" \
+            --title "Release ${TAG_NAME}" \
+            --generate-notes \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.zip" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.zip.sig" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg" \
+            "Cocoa-Way-${TAG_NAME}-arm64-macos.dmg.sig" \
+            cocoa-way-sbom.cdx.json \
+            checksums-sha256.txt

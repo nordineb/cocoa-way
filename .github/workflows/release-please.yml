@@ -1,0 +1,24 @@
+# ABOUTME: Automated release PR creation and tag management via release-please.
+# ABOUTME: Triggered on every push to main; creates/updates release PR with changelog.
+
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run release-please
+        # PIN THIS SHA before merging — use: gh api repos/googleapis/release-please-action/git/refs/tags/v4
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

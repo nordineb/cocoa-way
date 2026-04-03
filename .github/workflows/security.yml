@@ -1,0 +1,105 @@
+# ABOUTME: Security scanning pipeline for cocoa-way with shift-left philosophy.
+# ABOUTME: Runs cargo-audit, cargo-deny, zizmor, trufflehog, and SBOM generation.
+
+name: Security
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    name: Cargo Audit
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Run cargo audit
+        run: nix develop --command just audit
+
+  cargo-deny:
+    name: Cargo Deny
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+
+      - name: Run cargo deny check
+        run: nix develop --command just deny
+
+  zizmor:
+    name: Zizmor Action Linting
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor
+        run: brew install zizmor
+
+      - name: Run zizmor
+        run: zizmor .github/workflows/
+
+  trufflehog:
+    name: TruffleHog Secret Scanning
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install TruffleHog
+        run: brew install trufflehog
+
+      - name: Run TruffleHog scan (PR — full branch diff)
+        if: github.event_name == 'pull_request'
+        run: trufflehog git file://./ --since-commit ${{ github.event.pull_request.base.sha }} --only-verified --fail
+
+      - name: Run TruffleHog scan (push — last commit)
+        if: github.event_name != 'pull_request'
+        run: trufflehog git file://./ --since-commit HEAD~1 --only-verified --fail
+
+  sbom:
+    name: SBOM Generation
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-${{ github.sha }}
+          path: sbom.cdx.json
+          retention-days: 90

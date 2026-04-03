@@ -1,13 +1,13 @@
-use std::ffi::{CStr, CString};
-use std::num::NonZeroU32;
-use std::ptr;
-use glutin::config::{ConfigTemplateBuilder, GetGlConfig};
+use glutin::config::ConfigTemplateBuilder;
 use glutin::context::{ContextAttributesBuilder, PossiblyCurrentContext};
 use glutin::display::GetGlDisplay;
 use glutin::prelude::*;
 use glutin::surface::{Surface, SwapInterval, WindowSurface};
 use glutin_winit::{DisplayBuilder, GlWindow};
 use raw_window_handle::HasRawWindowHandle;
+use std::ffi::{CStr, CString};
+use std::num::NonZeroU32;
+use std::ptr;
 use winit::window::{Window, WindowBuilder};
 const VERTEX_SHADER_SOURCE: &str = r#"
 #version 330 core
@@ -80,7 +80,7 @@ pub struct GlRenderer {
     pub gl_context: PossiblyCurrentContext,
     pub gl_surface: Surface<WindowSurface>,
     pub width: u32,
-     height: u32,
+    height: u32,
     shader_program: u32,
     border_shader_program: u32,
     shadow_shader_program: u32,
@@ -88,7 +88,12 @@ pub struct GlRenderer {
     vbo: u32,
 }
 impl GlRenderer {
-    pub fn new(event_loop: &winit::event_loop::EventLoop<()>, title: &str, width: u32, height: u32) -> Result<Self, String> {
+    pub fn new(
+        event_loop: &winit::event_loop::EventLoop<()>,
+        title: &str,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, String> {
         let template = ConfigTemplateBuilder::new()
             .with_alpha_size(8)
             .with_transparency(false);
@@ -129,17 +134,25 @@ impl GlRenderer {
             .make_current(&gl_surface)
             .map_err(|e| format!("Failed to make current: {:?}", e))?;
         gl::load_with(|symbol| {
-            let symbol = std::ffi::CString::new(symbol).expect("OpenGL symbol name contains null byte");
+            let symbol =
+                std::ffi::CString::new(symbol).expect("OpenGL symbol name contains null byte");
             gl_display.get_proc_address(symbol.as_c_str()).cast()
         });
-        let version = unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const _).to_string_lossy() };
+        let version =
+            unsafe { CStr::from_ptr(gl::GetString(gl::VERSION) as *const _).to_string_lossy() };
         log::info!("OpenGL Version: {}", version);
-        if let Err(e) = gl_surface.set_swap_interval(&gl_context, SwapInterval::Wait(NonZeroU32::new(1).expect("1 is non-zero"))) {
+        if let Err(e) = gl_surface.set_swap_interval(
+            &gl_context,
+            SwapInterval::Wait(NonZeroU32::new(1).expect("1 is non-zero")),
+        ) {
             log::warn!("Error setting vsync: {:?}", e);
         }
-        let shader_program = unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)? };
-        let border_shader_program = unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, BORDER_FRAGMENT_SHADER)? };
-        let shadow_shader_program = unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, SHADOW_FRAGMENT_SHADER)? };
+        let shader_program =
+            unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, FRAGMENT_SHADER_SOURCE)? };
+        let border_shader_program =
+            unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, BORDER_FRAGMENT_SHADER)? };
+        let shadow_shader_program =
+            unsafe { Self::compile_program(VERTEX_SHADER_SOURCE, SHADOW_FRAGMENT_SHADER)? };
         let (vao, vbo) = unsafe { Self::create_quad_buffers() };
         let size = window.inner_size();
         Ok(Self {
@@ -157,65 +170,109 @@ impl GlRenderer {
     }
     unsafe fn compile_program(vertex_source: &str, fragment_source: &str) -> Result<u32, String> {
         let mut success = 0;
-        let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-        let c_str = CString::new(vertex_source).map_err(|e| format!("Failed to create CString: {}", e))?;
-        gl::ShaderSource(vertex_shader, 1, &c_str.as_ptr(), ptr::null());
-        gl::CompileShader(vertex_shader);
-        gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
+        let vertex_shader = unsafe { gl::CreateShader(gl::VERTEX_SHADER) };
+        let c_str =
+            CString::new(vertex_source).map_err(|e| format!("Failed to create CString: {}", e))?;
+        unsafe { gl::ShaderSource(vertex_shader, 1, &c_str.as_ptr(), ptr::null()) };
+        unsafe { gl::CompileShader(vertex_shader) };
+        unsafe { gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success) };
         if success == 0 {
             let mut log = [0u8; 512];
-            gl::GetShaderInfoLog(vertex_shader, 512, ptr::null_mut(), log.as_mut_ptr() as *mut _);
-            return Err(format!("Vertex shader compilation failed: {}", String::from_utf8_lossy(&log)));
+            unsafe {
+                gl::GetShaderInfoLog(
+                    vertex_shader,
+                    512,
+                    ptr::null_mut(),
+                    log.as_mut_ptr() as *mut _,
+                )
+            };
+            return Err(format!(
+                "Vertex shader compilation failed: {}",
+                String::from_utf8_lossy(&log)
+            ));
         }
-        let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-        let c_str = CString::new(fragment_source).map_err(|e| format!("Failed to create CString: {}", e))?;
-        gl::ShaderSource(fragment_shader, 1, &c_str.as_ptr(), ptr::null());
-        gl::CompileShader(fragment_shader);
-        gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
+        let fragment_shader = unsafe { gl::CreateShader(gl::FRAGMENT_SHADER) };
+        let c_str = CString::new(fragment_source)
+            .map_err(|e| format!("Failed to create CString: {}", e))?;
+        unsafe { gl::ShaderSource(fragment_shader, 1, &c_str.as_ptr(), ptr::null()) };
+        unsafe { gl::CompileShader(fragment_shader) };
+        unsafe { gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success) };
         if success == 0 {
             let mut log = [0u8; 512];
-            gl::GetShaderInfoLog(fragment_shader, 512, ptr::null_mut(), log.as_mut_ptr() as *mut _);
-            return Err(format!("Fragment shader compilation failed: {}", String::from_utf8_lossy(&log)));
+            unsafe {
+                gl::GetShaderInfoLog(
+                    fragment_shader,
+                    512,
+                    ptr::null_mut(),
+                    log.as_mut_ptr() as *mut _,
+                )
+            };
+            return Err(format!(
+                "Fragment shader compilation failed: {}",
+                String::from_utf8_lossy(&log)
+            ));
         }
-        let program = gl::CreateProgram();
-        gl::AttachShader(program, vertex_shader);
-        gl::AttachShader(program, fragment_shader);
-        gl::LinkProgram(program);
-        gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
+        let program = unsafe { gl::CreateProgram() };
+        unsafe { gl::AttachShader(program, vertex_shader) };
+        unsafe { gl::AttachShader(program, fragment_shader) };
+        unsafe { gl::LinkProgram(program) };
+        unsafe { gl::GetProgramiv(program, gl::LINK_STATUS, &mut success) };
         if success == 0 {
             let mut log = [0u8; 512];
-            gl::GetProgramInfoLog(program, 512, ptr::null_mut(), log.as_mut_ptr() as *mut _);
-            return Err(format!("Shader program linking failed: {}", String::from_utf8_lossy(&log)));
+            unsafe {
+                gl::GetProgramInfoLog(program, 512, ptr::null_mut(), log.as_mut_ptr() as *mut _)
+            };
+            return Err(format!(
+                "Shader program linking failed: {}",
+                String::from_utf8_lossy(&log)
+            ));
         }
-        gl::DeleteShader(vertex_shader);
-        gl::DeleteShader(fragment_shader);
+        unsafe { gl::DeleteShader(vertex_shader) };
+        unsafe { gl::DeleteShader(fragment_shader) };
         Ok(program)
     }
     unsafe fn create_quad_buffers() -> (u32, u32) {
         let vertices: [f32; 16] = [
-            0.0, 0.0,   0.0, 1.0,   
-            1.0, 0.0,   1.0, 1.0,   
-            1.0, 1.0,   1.0, 0.0,   
-            0.0, 1.0,   0.0, 0.0,   
+            0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0,
         ];
         let mut vao = 0;
         let mut vbo = 0;
-        gl::GenVertexArrays(1, &mut vao);
-        gl::GenBuffers(1, &mut vbo);
-        gl::BindVertexArray(vao);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            (vertices.len() * std::mem::size_of::<f32>()) as isize,
-            vertices.as_ptr() as *const _,
-            gl::STATIC_DRAW,
-        );
-        gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, 4 * std::mem::size_of::<f32>() as i32, ptr::null());
-        gl::EnableVertexAttribArray(0);
-        gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, 4 * std::mem::size_of::<f32>() as i32, (2 * std::mem::size_of::<f32>()) as *const _);
-        gl::EnableVertexAttribArray(1);
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        gl::BindVertexArray(0);
+        unsafe { gl::GenVertexArrays(1, &mut vao) };
+        unsafe { gl::GenBuffers(1, &mut vbo) };
+        unsafe { gl::BindVertexArray(vao) };
+        unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, vbo) };
+        unsafe {
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (vertices.len() * std::mem::size_of::<f32>()) as isize,
+                vertices.as_ptr() as *const _,
+                gl::STATIC_DRAW,
+            )
+        };
+        unsafe {
+            gl::VertexAttribPointer(
+                0,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                4 * std::mem::size_of::<f32>() as i32,
+                ptr::null(),
+            )
+        };
+        unsafe { gl::EnableVertexAttribArray(0) };
+        unsafe {
+            gl::VertexAttribPointer(
+                1,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                4 * std::mem::size_of::<f32>() as i32,
+                (2 * std::mem::size_of::<f32>()) as *const _,
+            )
+        };
+        unsafe { gl::EnableVertexAttribArray(1) };
+        unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, 0) };
+        unsafe { gl::BindVertexArray(0) };
         (vao, vbo)
     }
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -238,7 +295,17 @@ impl GlRenderer {
             gl::Clear(gl::COLOR_BUFFER_BIT);
         }
     }
-    pub fn draw_pixels(&self, x: i32, y: i32, dest_w: i32, dest_h: i32, tex_w: i32, tex_h: i32, pixels: &[u8]) {
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_pixels(
+        &self,
+        x: i32,
+        y: i32,
+        dest_w: i32,
+        dest_h: i32,
+        tex_w: i32,
+        tex_h: i32,
+        pixels: &[u8],
+    ) {
         if dest_w <= 0 || dest_h <= 0 || tex_w <= 0 || tex_h <= 0 {
             return;
         }
@@ -268,7 +335,7 @@ impl GlRenderer {
             let ndc_w = 2.0 * dest_w as f32 / self.width as f32;
             let ndc_h = 2.0 * dest_h as f32 / self.height as f32;
             gl::UseProgram(self.shader_program);
-            let rect_loc = gl::GetUniformLocation(self.shader_program, b"uRect\0".as_ptr() as *const _);
+            let rect_loc = gl::GetUniformLocation(self.shader_program, c"uRect".as_ptr());
             gl::Uniform4f(rect_loc, ndc_x, ndc_y, ndc_w, ndc_h);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
@@ -280,23 +347,27 @@ impl GlRenderer {
         }
     }
     pub fn draw_shadow(&self, x: i32, y: i32, width: i32, height: i32, sigma: f32) {
-        if width <= 0 || height <= 0 { return; }
+        if width <= 0 || height <= 0 {
+            return;
+        }
         unsafe {
             gl::UseProgram(self.shadow_shader_program);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            let rect_loc = gl::GetUniformLocation(self.shadow_shader_program, b"uRect\0".as_ptr() as *const _);
+            let rect_loc = gl::GetUniformLocation(self.shadow_shader_program, c"uRect".as_ptr());
             let ndc_x = (2.0 * x as f32 / self.width as f32) - 1.0;
             let ndc_y = 1.0 - (2.0 * (y + height) as f32 / self.height as f32);
             let ndc_w = 2.0 * width as f32 / self.width as f32;
             let ndc_h = 2.0 * height as f32 / self.height as f32;
             gl::Uniform4f(rect_loc, ndc_x, ndc_y, ndc_w, ndc_h);
-            let color_loc = gl::GetUniformLocation(self.shadow_shader_program, b"uShadowColor\0".as_ptr() as *const _);
-            gl::Uniform4f(color_loc, 0.0, 0.0, 0.0, 0.5);  
-            let sigma_loc = gl::GetUniformLocation(self.shadow_shader_program, b"uSigma\0".as_ptr() as *const _);
+            let color_loc =
+                gl::GetUniformLocation(self.shadow_shader_program, c"uShadowColor".as_ptr());
+            gl::Uniform4f(color_loc, 0.0, 0.0, 0.0, 0.5);
+            let sigma_loc = gl::GetUniformLocation(self.shadow_shader_program, c"uSigma".as_ptr());
             gl::Uniform1f(sigma_loc, sigma);
-            let offset_loc = gl::GetUniformLocation(self.shadow_shader_program, b"uOffset\0".as_ptr() as *const _);
-            gl::Uniform2f(offset_loc, 0.0, 0.0);  
+            let offset_loc =
+                gl::GetUniformLocation(self.shadow_shader_program, c"uOffset".as_ptr());
+            gl::Uniform2f(offset_loc, 0.0, 0.0);
             gl::BindVertexArray(self.vao);
             gl::DrawArrays(gl::TRIANGLE_FAN, 0, 4);
             gl::BindVertexArray(0);
@@ -304,21 +375,24 @@ impl GlRenderer {
         }
     }
     pub fn draw_border(&self, x: i32, y: i32, width: i32, height: i32, border_width: f32) {
-        if width <= 0 || height <= 0 { return; }
+        if width <= 0 || height <= 0 {
+            return;
+        }
         unsafe {
             gl::UseProgram(self.border_shader_program);
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
-            let rect_loc = gl::GetUniformLocation(self.border_shader_program, b"uRect\0".as_ptr() as *const _);
+            let rect_loc = gl::GetUniformLocation(self.border_shader_program, c"uRect".as_ptr());
             let ndc_x = (2.0 * x as f32 / self.width as f32) - 1.0;
             let ndc_y = 1.0 - (2.0 * (y + height) as f32 / self.height as f32);
             let ndc_w = 2.0 * width as f32 / self.width as f32;
             let ndc_h = 2.0 * height as f32 / self.height as f32;
             gl::Uniform4f(rect_loc, ndc_x, ndc_y, ndc_w, ndc_h);
-            let color_loc = gl::GetUniformLocation(self.border_shader_program, b"uColor\0".as_ptr() as *const _);
-            gl::Uniform4f(color_loc, 0.0, 0.6, 1.0, 1.0);  
-            let width_loc = gl::GetUniformLocation(self.border_shader_program, b"uBorderWidth\0".as_ptr() as *const _);
-            gl::Uniform1f(width_loc, border_width / width as f32);  
+            let color_loc = gl::GetUniformLocation(self.border_shader_program, c"uColor".as_ptr());
+            gl::Uniform4f(color_loc, 0.0, 0.6, 1.0, 1.0);
+            let width_loc =
+                gl::GetUniformLocation(self.border_shader_program, c"uBorderWidth".as_ptr());
+            gl::Uniform1f(width_loc, border_width / width as f32);
             gl::BindVertexArray(self.vao);
             gl::DrawArrays(gl::TRIANGLE_FAN, 0, 4);
             gl::BindVertexArray(0);

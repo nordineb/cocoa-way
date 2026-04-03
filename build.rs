@@ -20,7 +20,10 @@ fn check_pkg_config(pkg: &str, brew_hint: &str) {
     eprintln!("║  Make sure pkg-config can find it.                           ║");
     eprintln!("║                                                              ║");
     eprintln!("║  Homebrew:                                                   ║");
-    eprintln!("║    brew install lib{}                                   ║", brew_hint);
+    eprintln!(
+        "║    brew install lib{}                                   ║",
+        brew_hint
+    );
     eprintln!("║                                                              ║");
     eprintln!("║  Then rebuild:                                               ║");
     eprintln!("║    cargo clean && cargo build --release                      ║");

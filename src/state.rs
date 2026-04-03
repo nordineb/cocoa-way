@@ -9,7 +9,7 @@ use smithay::{
         compositor::{CompositorClientState, CompositorHandler, CompositorState},
         selection::data_device::{DataDeviceHandler, WaylandDndGrabHandler},
         selection::SelectionHandler,
-        shm::{BufferData, ShmHandler, ShmState},
+        shm::{ShmHandler, ShmState},
     },
 };
 use smithay::wayland::shell::xdg::{XdgShellHandler, XdgShellState};
@@ -23,7 +23,9 @@ pub struct AppState {
     pub seat_state: SeatState<AppState>,
     pub seat: Seat<Self>,
     pub data_device_state: smithay::wayland::selection::data_device::DataDeviceState,
+    #[allow(dead_code)]
     pub xdg_decoration_state: XdgDecorationState,
+    #[allow(dead_code)]
     pub output_state: smithay::wayland::output::OutputManagerState,
     pub output: smithay::output::Output,
     pub toplevels: Vec<smithay::wayland::shell::xdg::ToplevelSurface>,
@@ -71,7 +73,7 @@ impl AppState {
             display_handle,
         );
         let output = smithay::output::Output::new(
-            "winit".to_string(),  
+            "winit".to_string(),
             smithay::output::PhysicalProperties {
                 size: (0, 0).into(),
                 subpixel: smithay::output::Subpixel::Unknown,
@@ -98,12 +100,17 @@ impl AppState {
             shm_state,
             seat_state,
             seat,
-            data_device_state: smithay::wayland::selection::data_device::DataDeviceState::new::<Self>(display_handle),
+            data_device_state: smithay::wayland::selection::data_device::DataDeviceState::new::<Self>(
+                display_handle,
+            ),
             xdg_decoration_state: XdgDecorationState::new::<Self>(display_handle),
             output_state,
             output,
             toplevels: Vec::new(),
-            layout: Layout::new((width as f64 / scale_factor) as i32, (height as f64 / scale_factor) as i32),
+            layout: Layout::new(
+                (width as f64 / scale_factor) as i32,
+                (height as f64 / scale_factor) as i32,
+            ),
             surface_buffers: std::collections::HashMap::new(),
             surface_positions: std::collections::HashMap::new(),
             drag_state: None,
@@ -155,7 +162,7 @@ impl CompositorHandler for AppState {
         });
     }
     fn commit(&mut self, surface: &WlSurface) {
-        use smithay::wayland::compositor::{with_states, BufferAssignment, SurfaceAttributes};
+        use smithay::wayland::compositor::{BufferAssignment, SurfaceAttributes, with_states};
         with_states(surface, |states| {
             let mut guard = states.cached_state.get::<SurfaceAttributes>();
             log::info!(
@@ -164,7 +171,7 @@ impl CompositorHandler for AppState {
                 guard.pending().buffer
             );
         });
-        let _ = with_states(surface, |states| {
+        with_states(surface, |states| {
             let mut guard = states.cached_state.get::<SurfaceAttributes>();
             if let Some(buff) = &guard.current().buffer {
                 log::info!("Commit End: Buffer IS PRESENT in current state: {:?}", buff);
@@ -226,7 +233,10 @@ impl XdgShellHandler for AppState {
         if !self.toplevels.contains(&surface) {
             self.toplevels.push(surface.clone());
             self.layout.add_tile(surface.clone());
-            log::info!("Added tile to layout, now {} tiles", self.layout.tiles.len());
+            log::info!(
+                "Added tile to layout, now {} tiles",
+                self.layout.tiles.len()
+            );
         }
         surface.with_pending_state(|state| {
             state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Activated);
@@ -339,8 +349,7 @@ impl ShmHandler for AppState {
     }
 }
 impl BufferHandler for AppState {
-    fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {
-    }
+    fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {}
 }
 impl SeatHandler for AppState {
     type KeyboardFocus = WlSurface;
@@ -349,8 +358,7 @@ impl SeatHandler for AppState {
     fn seat_state(&mut self) -> &mut SeatState<AppState> {
         &mut self.seat_state
     }
-    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: CursorImageStatus) {
-    }
+    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: CursorImageStatus) {}
     fn focus_changed(&mut self, _seat: &Seat<Self>, _focus: Option<&Self::KeyboardFocus>) {}
 }
 pub struct ClientState {

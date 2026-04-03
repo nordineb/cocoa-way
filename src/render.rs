@@ -1,5 +1,6 @@
 use smithay::reexports::wayland_server::protocol::wl_buffer::WlBuffer;
 use smithay::wayland::shm::with_buffer_contents;
+#[allow(dead_code)]
 pub fn render_surface(
     buffer: &WlBuffer,
     canvas: &mut [u32],
@@ -66,15 +67,17 @@ pub fn get_buffer_pixels(buffer: &WlBuffer) -> Option<(i32, i32, Vec<u8>)> {
             for x in 0..width {
                 let pixel_offset = src_base + (x * 4) as usize;
                 if pixel_offset + 4 <= slice.len() {
-                    pixels.push(slice[pixel_offset]);      
-                    pixels.push(slice[pixel_offset + 1]);  
-                    pixels.push(slice[pixel_offset + 2]);  
-                    pixels.push(slice[pixel_offset + 3]);  
+                    pixels.push(slice[pixel_offset]);
+                    pixels.push(slice[pixel_offset + 1]);
+                    pixels.push(slice[pixel_offset + 2]);
+                    pixels.push(slice[pixel_offset + 3]);
                 } else {
                     pixels.extend_from_slice(&[0, 0, 0, 255]);
                 }
             }
         }
         Some((width, height, pixels))
-    }).ok().flatten()
+    })
+    .ok()
+    .flatten()
 }

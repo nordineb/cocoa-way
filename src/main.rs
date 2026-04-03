@@ -1,26 +1,21 @@
-use log::{error, info};
-use std::num::NonZeroU32;
-use std::rc::Rc;
+use log::info;
+use smithay::input::keyboard::FilterResult;
+use smithay::input::pointer::{ButtonEvent, MotionEvent};
+use smithay::reexports::wayland_server::Resource;
+use smithay::reexports::wayland_server::{Display, ListeningSocket};
+use smithay::utils::SERIAL_COUNTER;
 use std::sync::Arc;
 use winit::event::{ElementState, Event, KeyEvent, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::keyboard::PhysicalKey;
-use smithay::input::keyboard::FilterResult;
-use smithay::input::pointer::{ButtonEvent, MotionEvent};
-use smithay::input::{Seat, SeatHandler, SeatState};
-use smithay::reexports::wayland_server::protocol::{wl_compositor, wl_shm};
-use smithay::reexports::wayland_server::Resource;
-use smithay::reexports::wayland_server::{Display, ListeningSocket};
-use smithay::utils::{Serial, SERIAL_COUNTER};
+mod gl_renderer;
 mod handlers;
 mod keymap;
 mod layout;
 mod messages;
 mod render;
 mod state;
-mod gl_renderer;
-use messages::CompositorMessage;
 use crate::state::AppState;
+use messages::CompositorMessage;
 fn main() {
     if let Ok(env) = std::env::var("RUST_LOG") {
         tracing_subscriber::fmt().with_env_filter(env).init();
@@ -29,8 +24,11 @@ fn main() {
     }
     let event_loop = EventLoop::new().unwrap();
     println!("Attempting to load icon from assets/icon.png...");
-    let icon = if let Ok(img) = image::open("assets/icon.png") {
-        println!("Icon file opened successfully. Dimensions: {:?}", img.dimensions());
+    let _icon = if let Ok(img) = image::open("assets/icon.png") {
+        println!(
+            "Icon file opened successfully. Dimensions: {:?}",
+            img.dimensions()
+        );
         use image::GenericImageView;
         let (width, height) = img.dimensions();
         let rgba = img.into_rgba8().into_raw();
@@ -39,7 +37,7 @@ fn main() {
             Ok(icon) => {
                 println!("Winit Icon created successfully.");
                 Some(icon)
-            },
+            }
             Err(e) => {
                 println!("Failed to create winit Icon: {:?}", e);
                 None
@@ -56,7 +54,7 @@ fn main() {
     let mut display = Display::<AppState>::new().unwrap();
     let display_handle = display.handle();
     let (loop_signal, loop_receiver) = std::sync::mpsc::channel::<CompositorMessage>();
-    let scale_factor = renderer.window.scale_factor();
+    let _scale_factor = renderer.window.scale_factor();
     let mut state = AppState::new(
         &display_handle,
         renderer.window.scale_factor(),
@@ -72,7 +70,9 @@ fn main() {
     state.output.change_current_state(
         Some(initial_mode),
         Some(smithay::utils::Transform::Normal),
-        Some(smithay::output::Scale::Fractional(renderer.window.scale_factor())),
+        Some(smithay::output::Scale::Fractional(
+            renderer.window.scale_factor(),
+        )),
         Some((0, 0).into()),
     );
     state.output.set_preferred(initial_mode);
@@ -80,39 +80,45 @@ fn main() {
     if !runtime_dir.exists() {
         std::fs::create_dir_all(&runtime_dir).unwrap();
     }
-    unsafe { std::env::set_var("XDG_RUNTIME_DIR", &runtime_dir); }
+    unsafe {
+        std::env::set_var("XDG_RUNTIME_DIR", &runtime_dir);
+    }
     let listener = ListeningSocket::bind_auto("wayland", 1..10).unwrap();
     let socket_name = listener
         .socket_name()
         .unwrap()
         .to_string_lossy()
         .into_owned();
-    let socket_path = runtime_dir.join(&socket_name);
+    let _socket_path = runtime_dir.join(&socket_name);
     info!("Wayland socket created: {:?}", socket_name);
     info!("XDG_RUNTIME_DIR set to: {:?}", runtime_dir);
     info!(
         "To run clients: export XDG_RUNTIME_DIR={:?} WAYLAND_DISPLAY={}",
         runtime_dir, socket_name
     );
-    unsafe { std::env::set_var("WAYLAND_DISPLAY", &socket_name); }
+    unsafe {
+        std::env::set_var("WAYLAND_DISPLAY", &socket_name);
+    }
     let mut loop_handle = display_handle.clone();
-    std::thread::spawn(move || loop {
-        match listener.accept() {
-            Ok(Some(stream)) => {
-                use crate::state::ClientState;
-                info!("New client connected");
-                loop_handle
-                    .insert_client(
-                        stream,
-                        Arc::new(ClientState {
-                            compositor_state: Default::default(),
-                        }),
-                    )
-                    .unwrap();
-            }
-            Ok(None) => {}
-            Err(_) => {
-                std::thread::sleep(std::time::Duration::from_millis(10));
+    std::thread::spawn(move || {
+        loop {
+            match listener.accept() {
+                Ok(Some(stream)) => {
+                    use crate::state::ClientState;
+                    info!("New client connected");
+                    loop_handle
+                        .insert_client(
+                            stream,
+                            Arc::new(ClientState {
+                                compositor_state: Default::default(),
+                            }),
+                        )
+                        .unwrap();
+                }
+                Ok(None) => {}
+                Err(_) => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
             }
         }
     });
@@ -120,7 +126,7 @@ fn main() {
         smithay::utils::Point::<f64, smithay::utils::Logical>::from((0.0, 0.0));
     let start_time = std::time::Instant::now();
     event_loop.run(move |event, target| {
-        target.set_control_flow(ControlFlow::Poll);  
+        target.set_control_flow(ControlFlow::Poll);
          if std::time::Instant::now().elapsed().as_millis() % 5000 < 10 {
              static mut LAST_PRINT: u64 = 0;
              unsafe {
@@ -130,7 +136,7 @@ fn main() {
                     LAST_PRINT = now;
                  }
              }
-         } 
+         }
         while let Ok(msg) = loop_receiver.try_recv() {
             match msg {
                 CompositorMessage::Maximize(max) => {
@@ -191,18 +197,18 @@ fn main() {
                                 KeyCode::Escape => target.exit(),
                                 _ => {
                                      use smithay::backend::input::KeyState;
-                                     use smithay::input::keyboard::Keycode;  
+                                     use smithay::input::keyboard::Keycode;
                                      let serial = SERIAL_COUNTER.next_serial();
                                      let time = start_time.elapsed().as_millis() as u32;
-                                     if let Some(keyboard) = state.seat.get_keyboard() {
-                                         if let Some(scancode) = crate::keymap::map_key(physical_key) {
-                                             let key_state = match el_state {
-                                                 ElementState::Pressed => KeyState::Pressed,
-                                                 ElementState::Released => KeyState::Released,
-                                             };
-                                             let keycode = Keycode::from(scancode + 8);
-                                             keyboard.input(&mut state, keycode, key_state, serial, time, |_, _, _| FilterResult::<()>::Forward);
-                                         }
+                                     if let Some(keyboard) = state.seat.get_keyboard()
+                                         && let Some(scancode) = crate::keymap::map_key(physical_key)
+                                     {
+                                         let key_state = match el_state {
+                                             ElementState::Pressed => KeyState::Pressed,
+                                             ElementState::Released => KeyState::Released,
+                                         };
+                                         let keycode = Keycode::from(scancode + 8);
+                                         keyboard.input(&mut state, keycode, key_state, serial, time, |_, _, _| FilterResult::<()>::Forward);
                                      }
                                 }
                             }
@@ -227,7 +233,7 @@ fn main() {
                             let new_x = logical_pos.x - offset_x;
                             let new_y = logical_pos.y - offset_y;
                             state.surface_positions.insert(target_id, (new_x as i32, new_y as i32));
-                            renderer.request_redraw();  
+                            renderer.request_redraw();
                         }
                         let mut focus = None;
                          let cursor_logical_point = smithay::utils::Point::<f64, smithay::utils::Logical>::from((logical_pos.x, logical_pos.y));
@@ -259,7 +265,7 @@ fn main() {
                         };
                         pointer.motion(
                             &mut state,
-                            focus, 
+                            focus,
                             &event,
                         );
                         pointer.frame(&mut state);
@@ -270,7 +276,7 @@ fn main() {
                         let pointer = state.seat.get_pointer().unwrap();
                         let keyboard = state.seat.get_keyboard().unwrap();
                         let button_code = match button {
-                            winit::event::MouseButton::Left => 0x110,  
+                            winit::event::MouseButton::Left => 0x110,
                             winit::event::MouseButton::Right => 0x111,
                             winit::event::MouseButton::Middle => 0x112,
                             _ => 0x110,
@@ -282,10 +288,10 @@ fn main() {
                         let time = start_time.elapsed().as_millis() as u32;
                         if p_state == smithay::backend::input::ButtonState::Pressed && button == winit::event::MouseButton::Left {
                             let mut focus_surface = None;
-                            if let Some(pointer_state) = state.seat.get_pointer() {
-                                if let Some(surface) = pointer_state.current_focus() {
-                                    focus_surface = Some(surface);
-                                }
+                            if let Some(pointer_state) = state.seat.get_pointer()
+                                && let Some(surface) = pointer_state.current_focus()
+                            {
+                                focus_surface = Some(surface);
                             }
                             if let Some(surface) = focus_surface {
                                 log::info!("Click-Focus: Setting keyboard focus to {:?}", surface.id());
@@ -300,13 +306,13 @@ fn main() {
                                 keyboard.set_focus(&mut state, None, serial);
                             }
                         }
-                         if p_state == smithay::backend::input::ButtonState::Pressed && button == winit::event::MouseButton::Left {
-                             if let Some(target_id) = state.start_drag_request.take() {
-                                 let (cur_x, cur_y) = *state.surface_positions.get(&target_id).unwrap_or(&(0,0));
-                                 let offset_x = last_mouse_pos.x - cur_x as f64;
-                                 let offset_y = last_mouse_pos.y - cur_y as f64;
-                                 state.drag_state = Some((target_id, (offset_x, offset_y)));
-                             }
+                         if p_state == smithay::backend::input::ButtonState::Pressed && button == winit::event::MouseButton::Left
+                             && let Some(target_id) = state.start_drag_request.take()
+                         {
+                             let (cur_x, cur_y) = *state.surface_positions.get(&target_id).unwrap_or(&(0,0));
+                             let offset_x = last_mouse_pos.x - cur_x as f64;
+                             let offset_y = last_mouse_pos.y - cur_y as f64;
+                             state.drag_state = Some((target_id, (offset_x, offset_y)));
                          }
                         if p_state == smithay::backend::input::ButtonState::Released && button == winit::event::MouseButton::Left {
                             state.drag_state = None;
@@ -373,7 +379,7 @@ fn main() {
                             state.toplevels.retain(|t| t.wl_surface().is_alive());
                             state.layout.tiles.retain(|t| t.toplevel.wl_surface().is_alive());
                             if state.toplevels.len() != before_toplevels || state.layout.tiles.len() != before_tiles {
-                                log::warn!("CLEANUP: toplevels {} -> {}, tiles {} -> {}", 
+                                log::warn!("CLEANUP: toplevels {} -> {}, tiles {} -> {}",
                                     before_toplevels, state.toplevels.len(),
                                     before_tiles, state.layout.tiles.len());
                             }
@@ -388,7 +394,6 @@ fn main() {
                             }
                             for tile in state.layout.tiles.iter() {
                                 let wl_surface = tile.toplevel.wl_surface();
-                                let id = wl_surface.id();
                                 let x_offset = tile.position.x;
                                 let y_offset = tile.position.y;
                                 let phys_x = (x_offset as f64 * scale) as i32;
@@ -397,11 +402,11 @@ fn main() {
                                 let phys_h = (tile.size.h as f64 * scale) as i32;
                                 let shadow_padding = 40;
                                 renderer.draw_shadow(
-                                    phys_x - shadow_padding, 
-                                    phys_y - shadow_padding, 
-                                    phys_w + shadow_padding * 2, 
+                                    phys_x - shadow_padding,
+                                    phys_y - shadow_padding,
+                                    phys_w + shadow_padding * 2,
                                     phys_h + shadow_padding * 2,
-                                    10.0  
+                                    10.0
                                 );
                                 smithay::wayland::compositor::with_surface_tree_downward(
                                     wl_surface,
@@ -415,7 +420,7 @@ fn main() {
                                         match &current.buffer {
                                             Some(smithay::wayland::compositor::BufferAssignment::NewBuffer(b)) => {
                                                 let scale = renderer.window.scale_factor();
-                                                if let Some((buf_w, buf_h, pixels)) = crate::render::get_buffer_pixels(&b) {  
+                                                if let Some((buf_w, buf_h, pixels)) = crate::render::get_buffer_pixels(b) {
                                                     let buffer_scale = current.buffer_scale;
                                                     let dest_w = (buf_w as f64 / buffer_scale as f64 * scale).round() as i32;
                                                     let dest_h = (buf_h as f64 / buffer_scale as f64 * scale).round() as i32;
@@ -454,11 +459,11 @@ fn main() {
                                         phys_y - border_width,
                                         phys_w + border_width * 2,
                                         phys_h + border_width * 2,
-                                        0.1  
+                                        0.1
                                     );
                                 }
                                 send_frames_surface_tree(
-                                    wl_surface, 
+                                    wl_surface,
                                     std::time::Instant::now().elapsed().as_millis() as u32
                                 );
                             }
@@ -471,11 +476,8 @@ fn main() {
                 }
             }
             Event::AboutToWait => {
-                  match display.dispatch_clients(&mut state) {
-                      Ok(_) => {
-                          display.flush_clients().unwrap();
-                      }
-                      Err(_) => {}
+                  if display.dispatch_clients(&mut state).is_ok() {
+                      display.flush_clients().unwrap();
                   }
                   renderer.request_redraw();
             }
@@ -491,7 +493,7 @@ fn send_frames_surface_tree(
         surface,
         (),
         |_, _, _| smithay::wayland::compositor::TraversalAction::DoChildren(()),
-        |surface, states, _| {
+        |_surface, states, _| {
             let mut guard = states
                 .cached_state
                 .get::<smithay::wayland::compositor::SurfaceAttributes>();

@@ -1,7 +1,6 @@
 use std::{
     ffi::CStr,
     fs::File,
-    io::Write,
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, RawFd},
 };
 

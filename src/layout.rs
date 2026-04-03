@@ -1,5 +1,5 @@
-use smithay::reexports::wayland_server::backend::ObjectId;
 use smithay::reexports::wayland_server::Resource;
+use smithay::reexports::wayland_server::backend::ObjectId;
 use smithay::utils::{Logical, Point, Size};
 use smithay::wayland::shell::xdg::ToplevelSurface;
 #[derive(Debug)]
@@ -8,10 +8,15 @@ pub struct Tile {
     pub position: Point<i32, Logical>,
     pub size: Size<i32, Logical>,
     pub is_focused: bool,
+    #[allow(dead_code)]
     pub border_width: i32,
 }
 impl Tile {
-    pub fn new(toplevel: ToplevelSurface, position: Point<i32, Logical>, size: Size<i32, Logical>) -> Self {
+    pub fn new(
+        toplevel: ToplevelSurface,
+        position: Point<i32, Logical>,
+        size: Size<i32, Logical>,
+    ) -> Self {
         Self {
             toplevel,
             position,
@@ -20,23 +25,26 @@ impl Tile {
             border_width: 2,
         }
     }
+    #[allow(dead_code)]
     pub fn surface_id(&self) -> ObjectId {
         self.toplevel.wl_surface().id()
     }
+    #[allow(dead_code)]
     pub fn bounds(&self) -> (Point<i32, Logical>, Size<i32, Logical>) {
         (self.position, self.size)
     }
+    #[allow(dead_code)]
     pub fn contains_point(&self, point: Point<f64, Logical>) -> bool {
         let x = point.x as i32;
         let y = point.y as i32;
-        x >= self.position.x 
+        x >= self.position.x
             && x < self.position.x + self.size.w
-            && y >= self.position.y 
+            && y >= self.position.y
             && y < self.position.y + self.size.h
     }
     pub fn request_size(&self) {
         self.toplevel.with_pending_state(|state| {
-            state.size = Some(self.size.into());
+            state.size = Some(self.size);
         });
         self.toplevel.send_configure();
     }
@@ -71,17 +79,22 @@ impl Layout {
         self.focused_idx = Some(self.tiles.len() - 1);
         self.relayout();
     }
+    #[allow(dead_code)]
     pub fn remove_tile(&mut self, surface_id: &ObjectId) {
-        if let Some(idx) = self.tiles.iter().position(|t| &t.surface_id() == surface_id) {
+        if let Some(idx) = self
+            .tiles
+            .iter()
+            .position(|t| &t.surface_id() == surface_id)
+        {
             self.tiles.remove(idx);
-            if let Some(focused) = self.focused_idx {
-                if focused >= self.tiles.len() {
-                    self.focused_idx = if self.tiles.is_empty() {
-                        None
-                    } else {
-                        Some(self.tiles.len() - 1)
-                    };
-                }
+            if let Some(focused) = self.focused_idx
+                && focused >= self.tiles.len()
+            {
+                self.focused_idx = if self.tiles.is_empty() {
+                    None
+                } else {
+                    Some(self.tiles.len() - 1)
+                };
             }
             self.relayout();
         }
@@ -114,6 +127,7 @@ impl Layout {
             x += tile_size.w + self.gap;
         }
     }
+    #[allow(dead_code)]
     pub fn focus_at(&mut self, point: Point<f64, Logical>) -> Option<&Tile> {
         for (i, tile) in self.tiles.iter().enumerate() {
             if tile.contains_point(point) {
@@ -123,12 +137,15 @@ impl Layout {
         }
         None
     }
+    #[allow(dead_code)]
     pub fn focused_tile(&self) -> Option<&Tile> {
         self.focused_idx.and_then(|i| self.tiles.get(i))
     }
+    #[allow(dead_code)]
     pub fn tile_for_surface(&self, surface_id: &ObjectId) -> Option<&Tile> {
         self.tiles.iter().find(|t| &t.surface_id() == surface_id)
     }
+    #[allow(dead_code)]
     pub fn focus_next(&mut self) {
         if let Some(idx) = self.focused_idx {
             if !self.tiles.is_empty() {
@@ -138,10 +155,15 @@ impl Layout {
             self.focused_idx = Some(0);
         }
     }
+    #[allow(dead_code)]
     pub fn focus_prev(&mut self) {
         if let Some(idx) = self.focused_idx {
             if !self.tiles.is_empty() {
-                self.focused_idx = Some(if idx == 0 { self.tiles.len() - 1 } else { idx - 1 });
+                self.focused_idx = Some(if idx == 0 {
+                    self.tiles.len() - 1
+                } else {
+                    idx - 1
+                });
             }
         } else if !self.tiles.is_empty() {
             self.focused_idx = Some(self.tiles.len() - 1);
